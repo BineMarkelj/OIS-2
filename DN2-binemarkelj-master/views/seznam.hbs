@@ -1,0 +1,218 @@
+<div class="container text-center">
+  <div class="row">
+    <div class="col-md-6">
+      <h3><span class="glyphicon glyphicon-music"></span> Seznam 100 najbolje prodajanih pesmi</h3>
+      <div id="pesmi">
+        {{#each seznamPesmi as |pesem|}}
+          <div id="{{ pesem.id }}" class="pesem">
+            <button type="button" class="btn btn-default btn-xs">
+              <span class="glyphicon glyphicon-plus"></span>
+              <strong><span class="naziv">{{ pesem.pesem }}</span></strong>
+              (<span class="izvajalec">{{ pesem.izvajalec }}</span>)
+              @ <span class="cena">{{ pesem.cena }}</span> €
+              (<span class="stopnja">{{ pesem.stopnja }}</span> %)
+            </button>
+          </div>
+        {{/each}}
+      </div>
+    </div>
+    <div class="col-md-6">
+      <h3><span class="glyphicon glyphicon-shopping-cart"></span> Nakupovalna košarica #<span id="steviloArtiklov">0</span></h3>
+      <div id="kosarica"></div>
+      <div id="sporocilo"></div>
+      <button id="racun_html" type="button" class="btn btn-success btn-xs" disabled>
+        <span class="glyphicon glyphicon-euro"></span> Pripravi račun (HTML)
+      </button>
+      <button id="racun_xml" type="button" class="btn btn-success btn-xs" disabled>
+        <span class="glyphicon glyphicon-euro"></span> Pripravi račun (XML)
+      </button><br>
+      <button id="podrobnosti" type='button' class='btn btn-info btn-s' disabled>
+        <span class='glyphicon glyphicon-info-sign'></span> Podrobnosti
+      </button>
+      <div id="chartContainer" style="height: 30%; width: 100%"></div>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<style>
+  #kosarica {
+    margin-bottom:10px;
+  }
+  #podrobnosti, #chartContainer {
+    margin-top:20px;
+  }
+  .pesem button {
+    width:100%;
+    margin-bottom:5px;
+  }
+</style>
+
+<script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+<script>
+  /* global $, CanvasJS */
+  
+  var steviloSpremembvKosarici = 0;
+  
+  function premakniPesemIzSeznamaVKosarico(id, naziv, izvajalec, cena, stopnja, azuriraj) {
+    if (azuriraj) {
+      $.get("/kosarica/" + id, function(podatki) { /* Dodaj izbrano pesem v sejo */ });
+    }
+    $("#kosarica").append(
+      "<div id='" + id + "' class='pesem'>\
+        <button type='button' class='btn btn-default btn-xs'>\
+          <span class='glyphicon glyphicon-minus'></span> \
+          <strong><span class='naziv'>" + naziv + "</span></strong> \
+          (<span class='izvajalec'>" + izvajalec + "</span>) \
+          @ <span class='cena'>" + cena + "</span> € \
+          (<span class='stopnja'>" + stopnja + "</span> %) \
+        </button>\
+      </div>"
+    );
+    $("#kosarica #" + id).click(function() {
+      let pesem_kosarica = $(this);
+      $.get("/kosarica/" + id, function(podatki) {
+        /* Odstrani izbrano pesem iz seje */
+        if (!podatki || podatki.length == 0) {
+          $("#racun_html").prop("disabled", true);
+          $("#racun_xml").prop("disabled", true);
+          $("#podrobnosti").prop("disabled", true);
+          $("#sporocilo").hide();
+        }
+        $("#sporocilo").html("");
+      });
+      pesem_kosarica.remove();    // Izbriši pesem iz desnega seznama
+      $("#pesmi #" + id).show();  // Pokaži pesem v levem seznamu
+      steviloSpremembvKosarici--;
+       document.getElementById("steviloArtiklov").innerHTML = steviloSpremembvKosarici;
+      
+    });
+    $("#pesmi #" + id).hide();     // Skrij pesem v levem seznamu
+    steviloSpremembvKosarici++;
+    document.getElementById("steviloArtiklov").innerHTML = steviloSpremembvKosarici;
+    $("#racun_html").prop("disabled", false);
+    $("#racun_xml").prop("disabled", false);
+    $("#podrobnosti").prop("disabled", false);
+    $("#sporocilo").html("");
+    $("#sporocilo").show();
+  }
+
+  $(document).ready(function() {
+    /* Posodobi podatke iz košarice na spletni strani */
+    $.get("/kosarica", function(kosarica) {
+      kosarica.forEach(function(pesem) {
+        premakniPesemIzSeznamaVKosarico(
+          pesem.stevilkaArtikla,
+          pesem.opisArtikla.split(" (")[0],
+          (pesem.opisArtikla.split(" (")[1]).split(")")[0],
+          (pesem.cena * (1 + pesem.stopnja/100)).toFixed(2),
+          pesem.stopnja,
+          false
+        );
+      });
+    });
+
+    /* Klik na pesem v levem seznamu sproži dodajanje pesmi v desni seznam */
+    $("#pesmi .pesem").click(function() {
+      let pesem = $(this);
+      premakniPesemIzSeznamaVKosarico(
+        pesem.attr("id"),
+        pesem.find("button .naziv").text(),
+        pesem.find("button .izvajalec").text(),
+        pesem.find("button .cena").text(),
+        pesem.find("button .stopnja").text(),
+        true
+        
+      );
+    });
+
+    $("#podrobnosti").click(function () {
+      $.get("/podrobnosti", function (podrobnosti) {
+        let zanrStr = "";
+        
+        for (var key in podrobnosti) {
+        
+        console.log(podrobnosti);
+        console.log(Object.keys(podrobnosti));
+        
+        var stevilo = podrobnosti[key];
+        var imeZanra = zanrStr + key;
+        
+        if (podrobnosti[key] > 3) {
+          zanrStr = (imeZanra + " | " + stevilo + "<br>").bold();
+        } else {
+          zanrStr = imeZanra + " | " + stevilo + "<br>"
+        }
+        
+        }
+        
+        
+        $("#sporocilo").html(
+          "<div class='alert alert-info'>Košarica vsebuje žanre:<br>" +
+          zanrStr + "</div>" 
+        );
+      });
+    });
+
+    $("#racun_html").click(function() {
+      window.location = "/izpisiRacun/html";
+    });
+    $("#racun_xml").click(function() {
+      window.location = "/izpisiRacun/xml";
+    });
+
+    $.get("/seznam-izvajalcev", function (izvajalci) {
+      let podatkiZaGraf = [];
+
+      let maxInt = 0;
+      let maxIzvajalec = "";
+      let i = 0;
+      for (let key in izvajalci) {
+        podatkiZaGraf[i] = {y: izvajalci[key], label: key};
+        if (maxInt < izvajalci[key]) {
+          maxInt = izvajalci[key];
+          maxIzvajalec = key;
+        }
+        i++;
+      }
+      ///////////////////////
+            
+     
+      
+    //  console.log(steviloArtiklov);
+    //  console.log(steviloArtiklov.length);
+      
+      
+    //  document.getElementById("steviloArtiklov").innerHTML = steviloSpremembvKosarici;
+
+
+      ///////////////////////
+
+      let chart = new CanvasJS.Chart("chartContainer", {
+        animationEnabled: true,
+        
+        title: {
+          fontColor: "#005858",
+          text: "100 najbolje prodajanih pesmi po izvajalcih"
+        },
+        
+        subtitles: 
+           [{
+            fontColor: "green",
+            text: "najbolje prodajani izvajalec je " + maxIzvajalec
+          }],
+          
+          data: 
+            [{
+              type: "pie",
+              
+              yValueFormatString: "##0\"%\"",
+              indexLabel: "{label} {y}",
+              dataPoints: podatkiZaGraf
+              
+            }]
+      });
+      chart.render();
+    });
+  });
+</script>

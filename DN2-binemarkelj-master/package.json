@@ -1,0 +1,12 @@
+{
+  "name": "DN2",
+  "description": "Spletna prodajalna e-Pesmi+",
+  "author": "Dejan Lavbič <Dejan@lavbic.net>",
+  "dependencies": {
+    "express": "latest",
+    "express-session": "latest",
+    "formidable": "latest",
+    "sqlite3": "latest",
+    "hbs": "latest"
+  }
+}

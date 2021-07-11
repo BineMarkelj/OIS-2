@@ -1,0 +1,192 @@
+<div class="container text-center">
+  <div class="row">
+    <div class="col-md-6">
+      <h3><span class="glyphicon glyphicon-user"></span> Dodajanje nove stranke</h3>
+      <div id="stranke">
+        <form action="" method="post" enctype="multipart/form-data" autocomplete="off" novalidate>
+          <div class="form-group">
+            <input type="text" class="form-control" id="FirstName"
+                   name="FirstName" placeholder="Ime"/>
+          </div>
+          <div class="form-group">
+            <input type="text" class="form-control" id="LastName"
+                   name="LastName" placeholder="Priimek"/>
+          </div>
+          <div class="form-group">
+            <input type="text" class="form-control" id="Company"
+                   name="Company" placeholder="Podjetje"/>
+          </div>
+          <div class="form-group">
+            <input type="text" class="form-control" id="Address"
+                   name="Address" placeholder="Naslov"/>
+          </div>
+          <div class="form-group">
+            <input type="text" class="form-control" id="State"
+                   name="State" placeholder="Okrožje"/>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div id="mapa_id" class="form-group border rounded" style="height: 150px;"></div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <input type="text" class="form-control" id="PostalCode"
+                       name="PostalCode" placeholder="Poštna številka" readonly/>
+              </div>
+              <div class="form-group">
+                <input type="text" class="form-control" id="City"
+                       name="City" placeholder="Mesto" readonly/>
+              </div>
+              <div class="form-group">
+                <input type="text" class="form-control" id="Country"
+                       name="Country" placeholder="Država" readonly/>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="input-group">
+              <input type="text" class="form-control" id="Phone"
+                     name="Phone" placeholder="Telefon" aria-describedby="PhoneValidate" />
+              <span class="input-group-addon"><span id="PhoneValidate" class="glyphicon glyphicon-remove"></span></span>
+            </div>
+          </div>
+          <div class="form-group">
+            <input type="text" class="form-control" id="Fax"
+                   name="Fax" placeholder="Faks"/>
+          </div>
+          <div class="form-group" style="text-align: left">
+            <input type="email" class="form-control" id="Email"
+                   name="Email" placeholder="E-pošta"/>
+          </div>
+          <div class="form-group">
+            <p class="help-block">{{ sporocilo }}</p>
+            <input type="submit" id="Register" class="btn btn-default"
+                   value="Registracija" disabled/>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <h3><span class="glyphicon glyphicon-hand-right"></span> Izbira stranke</h3>
+      <div>
+        <select size="10" id="seznamStrank" name="seznamStrank" class="form-control">
+          {{#each seznamStrank as |stranka|}}
+            <option value="{{ stranka.CustomerId }}">
+              {{ stranka.FirstName }} {{ stranka.LastName }}, {{ stranka.Email }} :: {{stranka.Country}} {{stranka.vEU}}
+            </option>
+          {{/each}}
+        </select>
+      </div>
+      <br/>
+      <h3><span class="glyphicon glyphicon-usd"></span> Izbira računa</h3>
+      <div id="seznam2">
+        <form action="/izpisiRacunBaza" method="post" enctype="multipart/form-data">
+          <div class="form-group">
+            <select size="10" id="seznamRacunov" name="seznamRacunov" class="form-control">
+              {{#each seznamRacunov as |racun|}}
+                <option value="{{ racun.InvoiceId }}" customerId="{{ racun.CustomerId }}" selected>
+                  {{ racun.Naziv }}
+                </option>
+              {{/each}}
+            </select>
+          </div>
+          <div class="form-group">
+            <input type="submit" class="btn btn-default" value="Izbira računa"/>
+          </div>
+        </form>
+        <p id="podrobnostiRacuna" class="help-block"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .form-group {
+    margin-bottom: 10px;
+  }
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
+<script type="text/javascript" src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+<script>
+  /* global L, $ */
+  let mapa, marker;
+
+  const obKlikuNaMapo = function(e) {
+    if (marker) mapa.removeLayer(marker);
+    let latlng = e.latlng;
+    
+
+    $.getJSON(
+      "https://teaching.lavbic.net/api/kraji/iskanje/lokacija?lat=" +e.latlng.lat+"&lng=" +e.latlng.lng +"&razdalja=20&stZadetkov=10",
+      function (podatki, status) {
+        console.log(podatki);
+        let kraj = podatki[0].kraj;
+        let postnaStevilka = podatki[0].postnaStevilka;
+        let sporocilo = postnaStevilka + " " + kraj;
+        
+        marker = L.marker(latlng).addTo(mapa)
+                .bindPopup(sporocilo)
+                .openPopup();
+        $("#City").val(kraj);
+        $("#PostalCode").val(postnaStevilka);
+        $("#Country").val("Slovenija");
+    }).fail(function() {
+      console.log("Ne najdem kraja!");
+    });
+  };
+
+  $(document).ready(function () {
+    const FRI_LAT = 46.05004, FRI_LNG = 14.46931;
+    const mapOptions = { center: [FRI_LAT, FRI_LNG], zoom: 7 };
+
+    // Pripravi zemljevid
+    mapa = new L.map('mapa_id', mapOptions);
+    let layer = new L.TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+    mapa.addLayer(layer);
+    mapa.on('click', obKlikuNaMapo);
+
+    $("#Phone").keyup(function() {
+      console.log("Preveri telefonsko številko!");
+      var stevilkaTelefona = $("#Phone").val();
+      if (stevilkaTelefona.startsWith("00386") && (stevilkaTelefona.length < 14 && stevilkaTelefona.length > 6) && (!isNaN(stevilkaTelefona))){
+        var registracija = document.getElementById("Register");
+        registracija.disabled = false;
+        slikaGumba = document.getElementById("PhoneValidate");
+        slikaGumba.removeAttribute("glyphicon glyphicon-remove");
+        slikaGumba.setAttribute("class","glyphicon glyphicon-ok");
+      } else {
+        var registracija = document.getElementById("Register");
+        registracija.disabled = true;
+        slikaGumba = document.getElementById("PhoneValidate");
+        slikaGumba.removeAttribute("glyphicon glyphicon-ok")
+        slikaGumba.setAttribute("class", "glyphicon glyphicon-remove")
+      }
+    });
+
+    $("#seznamRacunov").change(function () {
+      let izbranRacunId = $(this).val();
+      $.get("/podrobnosti-racuna/" + izbranRacunId, function (racunPodrobnosti) {
+        $("#podrobnostiRacuna").html(racunPodrobnosti.stPesmi + " pesmi, " +
+          racunPodrobnosti.skupnaCena + " €");
+      });
+    });
+  });
+  
+  
+  
+  $(document).ready(function() {
+    $("#prijavaOdjavaGumb").prop("disabled", true);
+   
+      $("#seznamStrank").click(function () {
+          var izbranaStranka = $("#seznamStrank").val();
+          
+          if (izbranaStranka > 0) {
+            $("#prijavaOdjavaGumb").prop("disabled", false);
+          }
+      });
+    
+   });
+</script>
